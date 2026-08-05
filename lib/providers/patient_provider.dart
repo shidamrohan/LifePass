@@ -145,24 +145,17 @@ class PatientProvider with ChangeNotifier {
     required DateTime? diagnosedDate,
   }) async {
     try {
-      // TODO: Make API call
-      // final body = {
-      //   'name': name,
-      //   'diagnosed_date': diagnosedDate?.toIso8601String(),
-      // };
-      // const response = await _apiService.post<DiseaseModel>(
-      //   '/patient/diseases',
-      //   body: body,
-      //   fromJson: (json) => DiseaseModel.fromJson(json),
-      // );
-
-      // if (response.success && response.data != null) {
-      //   _diseases.add(response.data!);
-      //   notifyListeners();
-      //   return true;
-      // }
-
-      return false;
+      _diseases.add(
+        DiseaseModel(
+          id: DateTime.now().millisecondsSinceEpoch,
+          patientId: _patientProfile?.id ?? 0,
+          name: name,
+          diagnosedDate: diagnosedDate,
+          createdAt: DateTime.now(),
+        ),
+      );
+      notifyListeners();
+      return true;
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -173,18 +166,8 @@ class PatientProvider with ChangeNotifier {
   /// Remove disease
   Future<bool> removeDisease(int diseaseId) async {
     try {
-      // TODO: Make API call
-      // final response = await _apiService.delete<Map<String, dynamic>>(
-      //   '/patient/disease/$diseaseId',
-      //   fromJson: (json) => json as Map<String, dynamic>,
-      // );
-
-      // if (response.success) {
-      //   _diseases.removeWhere((d) => d.id == diseaseId);
-      //   notifyListeners();
-      //   return true;
-      // }
-
+      _diseases.removeWhere((d) => d.id == diseaseId);
+      notifyListeners();
       return false;
     } catch (e) {
       _error = e.toString();
@@ -222,24 +205,17 @@ class PatientProvider with ChangeNotifier {
     required String severity,
   }) async {
     try {
-      // TODO: Make API call
-      // final body = {
-      //   'name': name,
-      //   'severity': severity,
-      // };
-      // final response = await _apiService.post<AllergyModel>(
-      //   '/patient/allergies',
-      //   body: body,
-      //   fromJson: (json) => AllergyModel.fromJson(json),
-      // );
-
-      // if (response.success && response.data != null) {
-      //   _allergies.add(response.data!);
-      //   notifyListeners();
-      //   return true;
-      // }
-
-      return false;
+      _allergies.add(
+        AllergyModel(
+          id: DateTime.now().millisecondsSinceEpoch,
+          patientId: _patientProfile?.id ?? 0,
+          name: name,
+          severity: severity,
+          createdAt: DateTime.now(),
+        ),
+      );
+      notifyListeners();
+      return true;
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -250,18 +226,8 @@ class PatientProvider with ChangeNotifier {
   /// Remove allergy
   Future<bool> removeAllergy(int allergyId) async {
     try {
-      // TODO: Make API call
-      // final response = await _apiService.delete<Map<String, dynamic>>(
-      //   '/patient/allergy/$allergyId',
-      //   fromJson: (json) => json as Map<String, dynamic>,
-      // );
-
-      // if (response.success) {
-      //   _allergies.removeWhere((a) => a.id == allergyId);
-      //   notifyListeners();
-      //   return true;
-      // }
-
+      _allergies.removeWhere((a) => a.id == allergyId);
+      notifyListeners();
       return false;
     } catch (e) {
       _error = e.toString();
@@ -300,25 +266,18 @@ class PatientProvider with ChangeNotifier {
     required String frequency,
   }) async {
     try {
-      // TODO: Make API call
-      // final body = {
-      //   'name': name,
-      //   'dosage': dosage,
-      //   'frequency': frequency,
-      // };
-      // final response = await _apiService.post<MedicineModel>(
-      //   '/patient/medicines',
-      //   body: body,
-      //   fromJson: (json) => MedicineModel.fromJson(json),
-      // );
-
-      // if (response.success && response.data != null) {
-      //   _medicines.add(response.data!);
-      //   notifyListeners();
-      //   return true;
-      // }
-
-      return false;
+      _medicines.add(
+        MedicineModel(
+          id: DateTime.now().millisecondsSinceEpoch,
+          patientId: _patientProfile?.id ?? 0,
+          name: name,
+          dosage: dosage,
+          frequency: frequency,
+          createdAt: DateTime.now(),
+        ),
+      );
+      notifyListeners();
+      return true;
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -329,18 +288,8 @@ class PatientProvider with ChangeNotifier {
   /// Remove medicine
   Future<bool> removeMedicine(int medicineId) async {
     try {
-      // TODO: Make API call
-      // final response = await _apiService.delete<Map<String, dynamic>>(
-      //   '/patient/medicine/$medicineId',
-      //   fromJson: (json) => json as Map<String, dynamic>,
-      // );
-
-      // if (response.success) {
-      //   _medicines.removeWhere((m) => m.id == medicineId);
-      //   notifyListeners();
-      //   return true;
-      // }
-
+      _medicines.removeWhere((m) => m.id == medicineId);
+      notifyListeners();
       return false;
     } catch (e) {
       _error = e.toString();

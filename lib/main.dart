@@ -56,7 +56,6 @@ class _MyAppState extends State<MyApp> {
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF2E7D32), // Healthcare green
           ),
-          fontFamily: 'Poppins',
           useMaterial3: true,
         ),
         onGenerateRoute: AppRoutes.generateRoute,
