@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # mmh
 
 A new Flutter project.
@@ -15,3 +16,6 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+=======
+# LifePass
+>>>>>>> 5c8772bf80f5dcce39ab6cc6bf9be13deae56668
