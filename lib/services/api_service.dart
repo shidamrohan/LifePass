@@ -2,7 +2,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../config/api_config.dart';
 import '../models/api_models.dart';
 
@@ -25,7 +24,7 @@ class ApiService {
   }
 
   /// Get authorization headers
-  Map<String, String> _getHeaders({bool isJsonContent = true}) {
+  Map<String, String> _getHeaders() {
     final headers = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
