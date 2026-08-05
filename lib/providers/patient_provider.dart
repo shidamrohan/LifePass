@@ -298,6 +298,16 @@ class PatientProvider with ChangeNotifier {
     }
   }
 
+  /// Fetch all patient data at once (profile + diseases + allergies + medicines)
+  Future<void> fetchPatientData() async {
+    await Future.wait([
+      fetchPatientProfile(),
+      fetchDiseases(),
+      fetchAllergies(),
+      fetchMedicines(),
+    ]);
+  }
+
   /// Clear error
   void clearError() {
     _error = null;
