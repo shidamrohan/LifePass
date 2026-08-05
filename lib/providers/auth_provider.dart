@@ -238,4 +238,41 @@ class AuthProvider with ChangeNotifier {
       return false;
     }
   }
+
+  /// Change password
+  Future<bool> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.post<Map<String, dynamic>>(
+        '/auth/change-password',
+        body: {
+          'old_password': oldPassword,
+          'new_password': newPassword,
+        },
+        fromJson: (json) => json as Map<String, dynamic>,
+      );
+
+      if (response.success) {
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = response.error ?? 'Failed to change password';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
 }
