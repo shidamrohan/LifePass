@@ -1,9 +1,51 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
+
+enum Environment { development, staging, production }
+
 class ApiConfig {
-  // Backend API Base URL
-  static const String baseUrl = 'http://localhost:8000/api/v1';
+  // ===== CHANGE THIS TO SWITCH ENVIRONMENTS =====
+  static const Environment environment = Environment.development;
   
-  // Or use your production URL:
-  // static const String baseUrl = 'https://api.lifepass.com/api/v1';
+  // Development: Your machine IP (change to your actual IP for physical devices)
+  static const String devMachineIp = '192.168.0.106'; // Change this to your machine's IP
+  
+  // Get host IP based on platform (Android emulator needs 10.0.2.2, Web/Desktop uses localhost)
+  static String get _devHost {
+    if (kIsWeb) return 'localhost';
+    try {
+      if (Platform.isAndroid) return '10.0.2.2';
+    } catch (_) {}
+    return 'localhost';
+  }
+
+  // Backend API Base URL - Auto-selects based on environment
+  static String get baseUrl {
+    switch (environment) {
+      case Environment.development:
+        return 'http://$_devHost:8000/api/v1';
+      
+      case Environment.staging:
+        return 'http://$devMachineIp:8000/api/v1';
+      
+      case Environment.production:
+        return 'https://api.lifepass.com/api/v1';
+    }
+  }
+  
+  // Helper method to test connection
+  static String getConnectionInfo() {
+    return '''
+    Environment: ${environment.name}
+    Base URL: $baseUrl
+    
+    For Physical Device on same WiFi:
+      1. Find your machine's IP: ipconfig (Windows)
+      2. Replace devMachineIp = '$devMachineIp' with your actual IP
+      3. Change environment to staging
+      4. Rebuild app
+    ''';
+  }
 
   // API Endpoints
   static const String authRegister = '/auth/register';

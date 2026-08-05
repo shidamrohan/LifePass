@@ -61,7 +61,7 @@ dependencies:
   
   # File Picker & Camera
   image_picker: ^1.0.0
-  permission_handler: ^13.0.0
+  permission_handler: ^11.4.0
   
   # Connectivity
   connectivity_plus: ^7.3.1
