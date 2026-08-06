@@ -36,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'icon': Icons.qr_code_2,
       'color': Colors.blue,
       'title': 'QR Code Ready',
-      'body': 'Your emergency QR pass is active and scannable by doctors.',
+      'body': 'Your emergency QR pass is active and scannable by authorised hospital staff.',
       'time': '1 hr ago',
       'read': false,
     },
@@ -361,7 +361,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 12),
                           const Text(
-                            'Instant Doctor Access',
+                            'Instant Hospital Access',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 22,

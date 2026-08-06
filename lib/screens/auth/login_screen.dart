@@ -42,7 +42,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (success) {
-        // Navigate to home
         Navigator.of(context).pushReplacementNamed('/home');
       } else {
         // Show error dialog

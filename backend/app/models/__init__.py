@@ -8,7 +8,7 @@ Base = declarative_base()
 
 class UserRole(str, enum.Enum):
     PATIENT = "patient"
-    DOCTOR = "doctor"
+    HOSPITAL_STAFF = "hospital_staff"
     ADMIN = "admin"
 
 
@@ -20,7 +20,7 @@ class User(Base):
     name = Column(String)
     phone = Column(String)
     password = Column(String)
-    role = Column(Enum(UserRole), default=UserRole.PATIENT)
+    role = Column(Enum(UserRole, values_callable=lambda x: [e.value for e in x]), default=UserRole.PATIENT)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -117,3 +117,15 @@ class AuditLog(Base):
     action = Column(String)
     time = Column(DateTime, default=datetime.utcnow)
     ip_address = Column(String)
+
+
+class TreatmentRecord(Base):
+    __tablename__ = "treatment_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(Integer, ForeignKey("patient_profiles.id"), nullable=False)
+    doctor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    notes = Column(Text, nullable=False)
+    medications = Column(Text, nullable=True)
+    follow_up_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

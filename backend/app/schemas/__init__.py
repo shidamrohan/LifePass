@@ -5,7 +5,7 @@ from enum import Enum
 
 class UserRole(str, Enum):
     PATIENT = "patient"
-    DOCTOR = "doctor"
+    HOSPITAL_STAFF = "hospital_staff"
     ADMIN = "admin"
 
 
@@ -84,7 +84,7 @@ class ReportUpload(BaseModel):
 
 class TreatmentNote(BaseModel):
     patient_id: int
-    doctor_id: int
+    doctor_id: int | None = None
     notes: str
     medications: list[str] = None
     follow_up_date: datetime = None

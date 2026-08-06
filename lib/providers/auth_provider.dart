@@ -149,6 +149,18 @@ class AuthProvider with ChangeNotifier {
           createdAt: DateTime.now(),
         );
 
+        if (_user!.role != 'patient') {
+          _apiService.clearAuthToken();
+          await _storageService.logout();
+          _authToken = null;
+          _user = null;
+          _isLoggedIn = false;
+          _error = 'Hospital staff must sign in through the Hospital Portal.';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+
         // Save user data to storage
         await _storageService.saveUserData(
           userId: _user!.id,

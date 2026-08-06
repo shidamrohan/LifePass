@@ -182,7 +182,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 CustomDropdownField<String>(
                   label: 'I am a',
                   value: _selectedRole,
-                  items: const ['patient', 'doctor'],
+                  items: const ['patient'],
                   getLabel: (role) {
                     return role[0].toUpperCase() + role.substring(1);
                   },

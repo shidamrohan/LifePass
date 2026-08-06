@@ -77,6 +77,7 @@ def generate_qr_code(
 @router.post("/scan", response_model=dict)
 def scan_qr_code(
     qr_data: dict,
+    current_user_id: int = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -84,6 +85,9 @@ def scan_qr_code(
     qr_data: {'encrypted_token': 'base64_encrypted_patient_id'}
     """
     try:
+        user = db.query(User).filter(User.id == current_user_id).first()
+        if not user or user.role not in [UserRole.HOSPITAL_STAFF, UserRole.ADMIN]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only authorised staff can scan QR codes")
         encrypted_token = qr_data.get("encrypted_token")
         if not encrypted_token:
             raise HTTPException(
@@ -106,10 +110,14 @@ def scan_qr_code(
         from app.api.v1.routes.emergency import build_emergency_profile
         emergency_data = build_emergency_profile(db, patient_id)
 
+        # Destroy the QR code to make it single-use
+        db.query(QRCode).filter(QRCode.patient_id == patient_id).delete()
+        db.commit()
+
         return {
             "patient_id": patient_id,
             "emergency_profile": emergency_data,
-            "message": "QR code scanned successfully",
+            "message": "QR code scanned successfully. The code has now expired.",
         }
 
     except ValueError as e:

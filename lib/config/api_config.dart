@@ -85,11 +85,6 @@ class ApiConfig {
   static const String qrGenerate = '/qr/generate';
   static const String qrScan = '/qr/scan';
 
-  // Doctor Endpoints
-  static const String doctorPatient = '/doctor/patient';
-  static const String doctorTreatment = '/doctor/treatment';
-  static const String doctorAuditLogs = '/doctor/audit-logs';
-  static const String doctorMyActivity = '/doctor/my-activity';
 
   // Timeouts
   static const Duration connectionTimeout = Duration(seconds: 30);

@@ -12,10 +12,6 @@ import '../screens/medical/allergies_screen.dart';
 import '../screens/medical/medicines_screen.dart';
 import '../screens/emergency/emergency_profile_screen.dart';
 import '../screens/emergency/emergency_qr_screen.dart';
-import '../screens/doctor/doctor_dashboard_screen.dart';
-import '../screens/doctor/doctor_patient_screen.dart';
-import '../screens/doctor/doctor_treatment_screen.dart';
-import '../screens/doctor/doctor_audit_logs_screen.dart';
 import '../screens/reports/reports_dashboard_screen.dart';
 import '../screens/reports/report_upload_screen.dart';
 import '../screens/reports/report_history_screen.dart';
@@ -38,10 +34,6 @@ class AppRoutes {
   static const String medicines = '/medical/medicines';
   static const String emergencyProfile = '/emergency/profile';
   static const String emergencyQr = '/emergency/qr';
-  static const String doctorDashboard = '/doctor/dashboard';
-  static const String doctorPatient = '/doctor/patient';
-  static const String doctorTreatment = '/doctor/treatment';
-  static const String doctorAuditLogs = '/doctor/audit-logs';
   static const String reportsDashboard = '/reports';
   static const String reportsUpload = '/reports/upload';
   static const String reportsHistory = '/reports/history';
@@ -116,26 +108,6 @@ class AppRoutes {
         return MaterialPageRoute(
           builder: (_) => const EmergencyQrScreen(),
           settings: const RouteSettings(name: emergencyQr),
-        );
-      case doctorDashboard:
-        return MaterialPageRoute(
-          builder: (_) => const DoctorDashboardScreen(),
-          settings: const RouteSettings(name: doctorDashboard),
-        );
-      case doctorPatient:
-        return MaterialPageRoute(
-          builder: (_) => const DoctorPatientScreen(),
-          settings: const RouteSettings(name: doctorPatient),
-        );
-      case doctorTreatment:
-        return MaterialPageRoute(
-          builder: (_) => const DoctorTreatmentScreen(),
-          settings: const RouteSettings(name: doctorTreatment),
-        );
-      case doctorAuditLogs:
-        return MaterialPageRoute(
-          builder: (_) => const DoctorAuditLogsScreen(),
-          settings: const RouteSettings(name: doctorAuditLogs),
         );
       case reportsDashboard:
         return MaterialPageRoute(

@@ -1,21 +1,19 @@
-<<<<<<< HEAD
-# mmh
-
-A new Flutter project.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-=======
 # LifePass
->>>>>>> 5c8772bf80f5dcce39ab6cc6bf9be13deae56668
+
+AI-Powered Emergency Health Identity Platform
+
+## Test Credentials
+
+Here are the sample test credentials you can use across the system:
+
+### 🏥 Hospital Staff (Web Portal)
+- **Email**: `staff@hospital.com`
+- **Password**: `Password123`
+
+### 🛡️ System Admin (Web Portal)
+- **Email**: `admin@lifepass.com` 
+- **Password**: `Password123`
+
+### 📱 Patient (Mobile App)
+- **Email**: `patient@gmail.com`
+- **Password**: `Password123`
