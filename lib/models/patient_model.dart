@@ -32,8 +32,8 @@ class PatientModel {
     return PatientModel(
       id: json['id'] as int? ?? 0,
       userId: json['user_id'] as int? ?? 0,
-      dateOfBirth: json['date_of_birth'] != null
-          ? DateTime.parse(json['date_of_birth'] as String)
+      dateOfBirth: (json['date_of_birth'] ?? json['dob']) != null
+          ? DateTime.parse((json['date_of_birth'] ?? json['dob']) as String)
           : null,
       gender: json['gender'] as String?,
       bloodGroup: json['blood_group'] as String?,
@@ -43,7 +43,7 @@ class PatientModel {
       weight: json['weight'] != null
           ? double.tryParse(json['weight'].toString())
           : null,
-      emergencyContactName: json['emergency_contact_name'] as String?,
+      emergencyContactName: (json['emergency_contact_name'] ?? json['emergency_contact']) as String?,
       emergencyContactPhone: json['emergency_contact_phone'] as String?,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
@@ -125,8 +125,8 @@ class DiseaseModel {
       id: json['id'] as int? ?? 0,
       patientId: json['patient_id'] as int? ?? 0,
       name: json['name'] as String? ?? '',
-      diagnosedDate: json['diagnosed_date'] != null
-          ? DateTime.parse(json['diagnosed_date'] as String)
+      diagnosedDate: (json['diagnosed_date'] ?? json['date']) != null
+          ? DateTime.parse((json['diagnosed_date'] ?? json['date']) as String)
           : null,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)

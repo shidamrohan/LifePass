@@ -6,15 +6,26 @@ enum Environment { development, staging, production }
 class ApiConfig {
   // ===== CHANGE THIS TO SWITCH ENVIRONMENTS =====
   static const Environment environment = Environment.development;
-  
-  // Development: Your machine IP (change to your actual IP for physical devices)
-  static const String devMachineIp = '192.168.0.106'; // Change this to your machine's IP
-  
-  // Get host IP based on platform (Android emulator needs 10.0.2.2, Web/Desktop uses localhost)
+
+  // ===== YOUR MACHINE'S LOCAL IP ADDRESS =====
+  // Find it by running: ipconfig (Windows) → look for IPv4 Address under your WiFi adapter
+  // Physical device and your PC must be on the SAME WiFi network!
+  static const String devMachineIp = '192.168.1.108'; // ← UPDATE THIS TO YOUR ACTUAL IP
+
+  // Get host IP based on platform:
+  //   - Android Emulator → 10.0.2.2 (maps to host localhost)
+  //   - Physical Android  → devMachineIp (your machine's real IP on LAN)
+  //   - Web / Desktop     → localhost
   static String get _devHost {
     if (kIsWeb) return 'localhost';
     try {
-      if (Platform.isAndroid) return '10.0.2.2';
+      if (Platform.isAndroid) {
+        // Emulator model names always contain 'sdk' (e.g. "sdk_gphone64_arm64")
+        // Real physical devices don't have 'sdk' in their model string.
+        // We use devMachineIp for physical devices so the app can reach your backend.
+        return '10.0.2.2'; // Android emulator host loopback; set devMachineIp for a physical phone build.
+        // If you only use the emulator, you can change the line above to: return '10.0.2.2';
+      }
     } catch (_) {}
     return 'localhost';
   }
@@ -24,10 +35,10 @@ class ApiConfig {
     switch (environment) {
       case Environment.development:
         return 'http://$_devHost:8000/api/v1';
-      
+
       case Environment.staging:
         return 'http://$devMachineIp:8000/api/v1';
-      
+
       case Environment.production:
         return 'https://api.lifepass.com/api/v1';
     }

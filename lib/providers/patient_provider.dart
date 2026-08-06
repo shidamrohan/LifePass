@@ -70,12 +70,12 @@ class PatientProvider with ChangeNotifier {
 
     try {
       final body = {
-        'date_of_birth': dateOfBirth?.toIso8601String(),
+        'dob': dateOfBirth?.toIso8601String(),
         'gender': gender,
         'blood_group': bloodGroup,
         'height': height,
         'weight': weight,
-        'emergency_contact_name': emergencyContactName,
+        'emergency_contact': emergencyContactName,
         'emergency_contact_phone': emergencyContactPhone,
       };
 
@@ -125,9 +125,14 @@ class PatientProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // TODO: Implement API call
-      // For now, return empty list
-      _diseases = [];
+      final response = await _apiService.get<List<DiseaseModel>>(
+        '/patient/diseases',
+        fromJson: (json) => ((json['diseases'] as List?) ?? [])
+            .map((item) => DiseaseModel.fromJson(item as Map<String, dynamic>))
+            .toList(),
+      );
+      if (!response.success) throw Exception(response.error);
+      _diseases = response.data ?? [];
       _isLoading = false;
       notifyListeners();
       return true;
@@ -145,15 +150,13 @@ class PatientProvider with ChangeNotifier {
     required DateTime? diagnosedDate,
   }) async {
     try {
-      _diseases.add(
-        DiseaseModel(
-          id: DateTime.now().millisecondsSinceEpoch,
-          patientId: _patientProfile?.id ?? 0,
-          name: name,
-          diagnosedDate: diagnosedDate,
-          createdAt: DateTime.now(),
-        ),
+      final response = await _apiService.post<Map<String, dynamic>>(
+        '/patient/disease',
+        body: {'disease_name': name, 'diagnosed_date': diagnosedDate?.toIso8601String()},
+        fromJson: (json) => json as Map<String, dynamic>,
       );
+      if (!response.success) throw Exception(response.error);
+      await fetchDiseases();
       notifyListeners();
       return true;
     } catch (e) {
@@ -166,9 +169,11 @@ class PatientProvider with ChangeNotifier {
   /// Remove disease
   Future<bool> removeDisease(int diseaseId) async {
     try {
+      final response = await _apiService.delete<Map<String, dynamic>>('/patient/disease/$diseaseId', fromJson: (json) => json as Map<String, dynamic>);
+      if (!response.success) throw Exception(response.error);
       _diseases.removeWhere((d) => d.id == diseaseId);
       notifyListeners();
-      return false;
+      return true;
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -185,9 +190,17 @@ class PatientProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // TODO: Implement API call
-      // For now, return empty list
-      _allergies = [];
+      final response = await _apiService.get<List<AllergyModel>>(
+        '/patient/allergies',
+        fromJson: (json) => ((json['allergies'] as List?) ?? [])
+            .map((item) {
+              final map = Map<String, dynamic>.from(item as Map);
+              map['name'] ??= map['allergy'];
+              return AllergyModel.fromJson(map);
+            }).toList(),
+      );
+      if (!response.success) throw Exception(response.error);
+      _allergies = response.data ?? [];
       _isLoading = false;
       notifyListeners();
       return true;
@@ -205,15 +218,9 @@ class PatientProvider with ChangeNotifier {
     required String severity,
   }) async {
     try {
-      _allergies.add(
-        AllergyModel(
-          id: DateTime.now().millisecondsSinceEpoch,
-          patientId: _patientProfile?.id ?? 0,
-          name: name,
-          severity: severity,
-          createdAt: DateTime.now(),
-        ),
-      );
+      final response = await _apiService.post<Map<String, dynamic>>('/patient/allergy', body: {'allergy': name, 'severity': severity}, fromJson: (json) => json as Map<String, dynamic>);
+      if (!response.success) throw Exception(response.error);
+      await fetchAllergies();
       notifyListeners();
       return true;
     } catch (e) {
@@ -226,9 +233,11 @@ class PatientProvider with ChangeNotifier {
   /// Remove allergy
   Future<bool> removeAllergy(int allergyId) async {
     try {
+      final response = await _apiService.delete<Map<String, dynamic>>('/patient/allergy/$allergyId', fromJson: (json) => json as Map<String, dynamic>);
+      if (!response.success) throw Exception(response.error);
       _allergies.removeWhere((a) => a.id == allergyId);
       notifyListeners();
-      return false;
+      return true;
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -245,9 +254,14 @@ class PatientProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // TODO: Implement API call
-      // For now, return empty list
-      _medicines = [];
+      final response = await _apiService.get<List<MedicineModel>>(
+        '/patient/medicines',
+        fromJson: (json) => ((json['medicines'] as List?) ?? [])
+            .map((item) => MedicineModel.fromJson(item as Map<String, dynamic>))
+            .toList(),
+      );
+      if (!response.success) throw Exception(response.error);
+      _medicines = response.data ?? [];
       _isLoading = false;
       notifyListeners();
       return true;
@@ -266,16 +280,9 @@ class PatientProvider with ChangeNotifier {
     required String frequency,
   }) async {
     try {
-      _medicines.add(
-        MedicineModel(
-          id: DateTime.now().millisecondsSinceEpoch,
-          patientId: _patientProfile?.id ?? 0,
-          name: name,
-          dosage: dosage,
-          frequency: frequency,
-          createdAt: DateTime.now(),
-        ),
-      );
+      final response = await _apiService.post<Map<String, dynamic>>('/patient/medicine', body: {'medicine': name, 'dosage': dosage, 'frequency': frequency}, fromJson: (json) => json as Map<String, dynamic>);
+      if (!response.success) throw Exception(response.error);
+      await fetchMedicines();
       notifyListeners();
       return true;
     } catch (e) {
@@ -288,9 +295,11 @@ class PatientProvider with ChangeNotifier {
   /// Remove medicine
   Future<bool> removeMedicine(int medicineId) async {
     try {
+      final response = await _apiService.delete<Map<String, dynamic>>('/patient/medicine/$medicineId', fromJson: (json) => json as Map<String, dynamic>);
+      if (!response.success) throw Exception(response.error);
       _medicines.removeWhere((m) => m.id == medicineId);
       notifyListeners();
-      return false;
+      return true;
     } catch (e) {
       _error = e.toString();
       notifyListeners();

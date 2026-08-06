@@ -166,6 +166,16 @@ def get_diseases(
     }
 
 
+@router.delete("/disease/{disease_id}", response_model=dict)
+def delete_disease(disease_id: int, current_user_id: int = Depends(get_current_user), db: Session = Depends(get_db)):
+    profile = db.query(PatientProfile).filter(PatientProfile.user_id == current_user_id).first()
+    disease = db.query(Disease).filter(Disease.id == disease_id, Disease.patient_id == profile.id if profile else -1).first()
+    if not disease:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Disease not found")
+    db.delete(disease); db.commit()
+    return {"message": "Disease removed"}
+
+
 @router.post("/allergy", response_model=dict)
 def add_allergy(
     allergy: AllergyCreate,
@@ -213,6 +223,16 @@ def get_allergies(
             {"id": a.id, "allergy": a.allergy, "severity": a.severity} for a in allergies
         ]
     }
+
+
+@router.delete("/allergy/{allergy_id}", response_model=dict)
+def delete_allergy(allergy_id: int, current_user_id: int = Depends(get_current_user), db: Session = Depends(get_db)):
+    profile = db.query(PatientProfile).filter(PatientProfile.user_id == current_user_id).first()
+    allergy = db.query(Allergy).filter(Allergy.id == allergy_id, Allergy.patient_id == profile.id if profile else -1).first()
+    if not allergy:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Allergy not found")
+    db.delete(allergy); db.commit()
+    return {"message": "Allergy removed"}
 
 
 @router.post("/medicine", response_model=dict)
@@ -271,3 +291,13 @@ def get_medicines(
             for m in medicines
         ]
     }
+
+
+@router.delete("/medicine/{medicine_id}", response_model=dict)
+def delete_medicine(medicine_id: int, current_user_id: int = Depends(get_current_user), db: Session = Depends(get_db)):
+    profile = db.query(PatientProfile).filter(PatientProfile.user_id == current_user_id).first()
+    medicine = db.query(Medicine).filter(Medicine.id == medicine_id, Medicine.patient_id == profile.id if profile else -1).first()
+    if not medicine:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medicine not found")
+    db.delete(medicine); db.commit()
+    return {"message": "Medicine removed"}

@@ -6,6 +6,6 @@ class EditProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const CreateProfileScreen();
+    return const CreateProfileScreen(isEditing: true);
   }
 }

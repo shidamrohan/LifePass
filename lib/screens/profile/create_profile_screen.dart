@@ -5,7 +5,8 @@ import '../../config/app_constants.dart';
 import '../../widgets/custom_widgets.dart';
 
 class CreateProfileScreen extends StatefulWidget {
-  const CreateProfileScreen({super.key});
+  final bool isEditing;
+  const CreateProfileScreen({super.key, this.isEditing = false});
 
   @override
   State<CreateProfileScreen> createState() => _CreateProfileScreenState();
@@ -31,6 +32,17 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
     _weightController = TextEditingController();
     _emergencyNameController = TextEditingController();
     _emergencyPhoneController = TextEditingController();
+    if (widget.isEditing) {
+      final profile = context.read<PatientProvider>().patientProfile;
+      _selectedDob = profile?.dateOfBirth;
+      _selectedGender = profile?.gender;
+      _selectedBloodGroup = profile?.bloodGroup;
+      _dobController.text = _selectedDob == null ? '' : '${_selectedDob!.day.toString().padLeft(2, '0')}/${_selectedDob!.month.toString().padLeft(2, '0')}/${_selectedDob!.year}';
+      _heightController.text = profile?.height?.toString() ?? '';
+      _weightController.text = profile?.weight?.toString() ?? '';
+      _emergencyNameController.text = profile?.emergencyContactName ?? '';
+      _emergencyPhoneController.text = profile?.emergencyContactPhone ?? '';
+    }
   }
 
   @override
@@ -62,6 +74,10 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedGender == null || _selectedBloodGroup == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select your gender and blood group.')));
+      return;
+    }
 
     final patientProvider = context.read<PatientProvider>();
     final success = await patientProvider.savePatientProfile(
@@ -107,7 +123,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Create Patient Profile',
+                widget.isEditing ? 'Edit Patient Profile' : 'Create Patient Profile',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -174,7 +190,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
               const SizedBox(height: 28),
               Consumer<PatientProvider>(
                 builder: (context, provider, _) => PrimaryButton(
-                  label: 'Save Profile',
+                  label: widget.isEditing ? 'Update Profile' : 'Save Profile',
                   isLoading: provider.isLoading,
                   onPressed: _saveProfile,
                 ),

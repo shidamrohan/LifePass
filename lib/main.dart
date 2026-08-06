@@ -8,6 +8,9 @@ import 'providers/patient_provider.dart';
 import 'config/app_routes.dart';
 
 void main() async {
+  // Must be called before any plugin or async code
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Initialize storage first
   await storageService.init();
 

@@ -19,6 +19,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
+  // Static screens - initialized once, not rebuilt on every frame
+  late final List<Widget> _staticPages;
+
   // ── Notifications ──────────────────────────────────────────
   final List<Map<String, dynamic>> _notifications = [
     {
@@ -61,6 +64,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize static pages once to avoid rebuilding them on every frame
+    _staticPages = const [
+      ReportsDashboardScreen(),
+      EmergencyQrScreen(),
+      SettingsDashboardScreen(),
+    ];
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PatientProvider>().fetchPatientData();
     });
@@ -71,12 +80,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final authProvider = context.watch<AuthProvider>();
     final patientProvider = context.watch<PatientProvider>();
 
+    // Only dashboard and medical tab depend on providers — rebuild those when needed
     final List<Widget> pages = [
       _buildDashboard(context, authProvider, patientProvider),
       _buildMedicalTab(context),
-      const ReportsDashboardScreen(),
-      const EmergencyQrScreen(),
-      const SettingsDashboardScreen(),
+      _staticPages[0], // ReportsDashboardScreen
+      _staticPages[1], // EmergencyQrScreen
+      _staticPages[2], // SettingsDashboardScreen
     ];
 
     return Scaffold(
@@ -518,12 +528,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         _gridTile(
                           context,
-                          icon: Icons.contact_emergency,
-                          title: 'Doctor Portal',
-                          subtitle: 'Scan & Audit',
-                          color: Colors.deepPurple,
+                          icon: Icons.health_and_safety_outlined,
+                          title: 'Emergency Pass',
+                          subtitle: 'Critical details',
+                          color: Colors.red,
                           onTap: () => Navigator.of(context)
-                              .pushNamed('/doctor/dashboard'),
+                              .pushNamed('/emergency/profile'),
                         ),
                       ],
                     ),

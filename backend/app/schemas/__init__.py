@@ -25,6 +25,7 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user: dict | None = None
 
 
 class PatientProfileCreate(BaseModel):
@@ -38,6 +39,8 @@ class PatientProfileCreate(BaseModel):
 
 
 class PatientProfileUpdate(BaseModel):
+    dob: datetime = None
+    gender: str = None
     blood_group: str = None
     height: float = None
     weight: float = None

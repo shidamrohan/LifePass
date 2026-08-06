@@ -180,6 +180,26 @@ class ApiService {
     }
   }
 
+  /// Upload a report using multipart/form-data.
+  Future<ApiResponse<Map<String, dynamic>>> uploadReport({
+    required String path,
+    required String reportType,
+  }) async {
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/reports/upload'));
+      if (_authToken != null && _authToken!.isNotEmpty) request.headers['Authorization'] = 'Bearer $_authToken';
+      request.fields['report_type'] = reportType;
+      request.files.add(await http.MultipartFile.fromPath('file', path));
+      final streamed = await request.send().timeout(ApiConfig.connectionTimeout);
+      final response = await http.Response.fromStream(streamed);
+      return _handleResponse<Map<String, dynamic>>(response, (json) => json as Map<String, dynamic>);
+    } on TimeoutException {
+      return ApiResponse<Map<String, dynamic>>.error(error: 'Upload timed out. Please try again.', statusCode: 408);
+    } catch (e) {
+      return ApiResponse<Map<String, dynamic>>.error(error: 'Upload failed: $e', statusCode: 500);
+    }
+  }
+
   /// Handle API response
   ApiResponse<T> _handleResponse<T>(
     http.Response response,

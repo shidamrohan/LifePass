@@ -9,7 +9,9 @@ from app.auth import (
     get_password_hash,
     create_access_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
+    get_current_user,
 )
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -61,4 +63,31 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         expires_delta=access_token_expires,
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user": {
+        "id": db_user.id, "email": db_user.email, "name": db_user.name,
+        "phone": db_user.phone, "role": db_user.role.value,
+    }}
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+@router.post("/change-password", response_model=dict)
+def change_password(payload: ChangePasswordRequest, current_user_id: int = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == current_user_id).first()
+    if not user or not verify_password(payload.old_password, user.password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must be at least 6 characters")
+    user.password = get_password_hash(payload.new_password)
+    db.commit()
+    return {"message": "Password updated successfully"}
+
+
+@router.post("/forgot-password", response_model=dict)
+def forgot_password(payload: dict, db: Session = Depends(get_db)):
+    if not db.query(User).filter(User.email == payload.get("email", "")).first():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No account found for this email")
+    return {"message": "Password reset email is not configured. Contact support to reset your password."}

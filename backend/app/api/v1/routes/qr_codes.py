@@ -42,12 +42,14 @@ def generate_qr_code(
             return {
                 "patient_id": profile.id,
                 "qr_code": qr_image,
+                "encrypted_token": existing_qr.encrypted_token,
                 "status": "regenerated",
                 "message": "QR code regenerated",
             }
         else:
             # Create new QR
             encrypted_token = qr_generator.encrypt_patient_id(profile.id)
+            # Generate the image from the same token stored for scanning.
             qr_image = qr_generator.generate_qr_code(profile.id)
 
             db_qr = QRCode(
@@ -61,6 +63,7 @@ def generate_qr_code(
             return {
                 "patient_id": profile.id,
                 "qr_code": qr_image,
+                "encrypted_token": encrypted_token,
                 "status": "created",
                 "message": "QR code generated successfully",
             }

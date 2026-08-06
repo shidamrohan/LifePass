@@ -49,13 +49,12 @@ class StorageService {
     required String phone,
     required String role,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_userIdKey, userId);
-    await prefs.setString(_userEmailKey, email);
-    await prefs.setString(_userNameKey, name);
-    await prefs.setString(_userPhoneKey, phone);
-    await prefs.setString(_userRoleKey, role);
-    return await prefs.setBool(_isLoggedInKey, true);
+    await _prefs.setInt(_userIdKey, userId);
+    await _prefs.setString(_userEmailKey, email);
+    await _prefs.setString(_userNameKey, name);
+    await _prefs.setString(_userPhoneKey, phone);
+    await _prefs.setString(_userRoleKey, role);
+    return await _prefs.setBool(_isLoggedInKey, true);
   }
 
   /// Get user ID

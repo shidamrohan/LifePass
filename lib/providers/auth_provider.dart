@@ -138,14 +138,13 @@ class AuthProvider with ChangeNotifier {
         await _storageService.saveAuthToken(_authToken!);
         _apiService.setAuthToken(_authToken!);
 
-        // TODO: Fetch user details after login
-        // For now, we'll create a basic user object
+        final userData = response.data!.user;
         _user = UserModel(
-          id: 0,
-          email: email,
-          name: email.split('@')[0],
-          phone: '',
-          role: 'patient',
+          id: userData?['id'] as int? ?? 0,
+          email: userData?['email'] as String? ?? email,
+          name: userData?['name'] as String? ?? email.split('@')[0],
+          phone: userData?['phone'] as String? ?? '',
+          role: userData?['role'] as String? ?? 'patient',
           isActive: true,
           createdAt: DateTime.now(),
         );
@@ -153,10 +152,10 @@ class AuthProvider with ChangeNotifier {
         // Save user data to storage
         await _storageService.saveUserData(
           userId: _user!.id,
-          email: email,
+          email: _user!.email,
           name: _user!.name,
-          phone: '',
-          role: 'patient',
+          phone: _user!.phone,
+          role: _user!.role,
         );
 
         _isLoggedIn = true;

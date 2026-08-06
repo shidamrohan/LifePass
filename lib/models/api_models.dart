@@ -87,16 +87,19 @@ class LoginRequest {
 class LoginResponse {
   final String accessToken;
   final String tokenType;
+  final Map<String, dynamic>? user;
 
   LoginResponse({
     required this.accessToken,
     required this.tokenType,
+    this.user,
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     return LoginResponse(
       accessToken: json['access_token'] as String? ?? '',
       tokenType: json['token_type'] as String? ?? 'bearer',
+      user: json['user'] as Map<String, dynamic>?,
     );
   }
 }
