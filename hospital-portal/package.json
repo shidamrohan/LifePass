@@ -8,6 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
     "@vitejs/plugin-react": "^5.0.0",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^1.29.0",

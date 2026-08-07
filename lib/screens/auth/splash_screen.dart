@@ -17,8 +17,8 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _navigateAfterDelay() async {
-    // Wait for auth provider to initialize
-    await Future.delayed(const Duration(seconds: 2));
+    // Wait briefly for auth provider to initialize from local storage
+    await Future.delayed(const Duration(milliseconds: 100));
 
     if (!mounted) return;
 

@@ -1,9 +1,7 @@
-
-
 // Patient profile model
 class PatientModel {
-  final int id;
-  final int userId;
+  final String id;
+  final String userId;
   final DateTime? dateOfBirth;
   final String? gender; // 'male', 'female', 'other'
   final String? bloodGroup; // 'O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'
@@ -30,8 +28,8 @@ class PatientModel {
 
   factory PatientModel.fromJson(Map<String, dynamic> json) {
     return PatientModel(
-      id: json['id'] as int? ?? 0,
-      userId: json['user_id'] as int? ?? 0,
+      id: json['id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? json['id']?.toString() ?? '',
       dateOfBirth: (json['date_of_birth'] ?? json['dob']) != null
           ? DateTime.parse((json['date_of_birth'] ?? json['dob']) as String)
           : null,
@@ -71,8 +69,8 @@ class PatientModel {
   }
 
   PatientModel copyWith({
-    int? id,
-    int? userId,
+    String? id,
+    String? userId,
     DateTime? dateOfBirth,
     String? gender,
     String? bloodGroup,
@@ -107,7 +105,7 @@ class PatientModel {
 // Disease model
 class DiseaseModel {
   final int id;
-  final int patientId;
+  final String patientId;
   final String name;
   final DateTime? diagnosedDate;
   final DateTime? createdAt;
@@ -123,8 +121,8 @@ class DiseaseModel {
   factory DiseaseModel.fromJson(Map<String, dynamic> json) {
     return DiseaseModel(
       id: json['id'] as int? ?? 0,
-      patientId: json['patient_id'] as int? ?? 0,
-      name: json['name'] as String? ?? '',
+      patientId: json['patient_id']?.toString() ?? '',
+      name: (json['disease_name'] ?? json['name']) as String? ?? '',
       diagnosedDate: (json['diagnosed_date'] ?? json['date']) != null
           ? DateTime.parse((json['diagnosed_date'] ?? json['date']) as String)
           : null,
@@ -151,7 +149,7 @@ class DiseaseModel {
 // Allergy model
 class AllergyModel {
   final int id;
-  final int patientId;
+  final String patientId;
   final String name;
   final String severity; // 'mild', 'moderate', 'severe'
   final DateTime? createdAt;
@@ -167,8 +165,8 @@ class AllergyModel {
   factory AllergyModel.fromJson(Map<String, dynamic> json) {
     return AllergyModel(
       id: json['id'] as int? ?? 0,
-      patientId: json['patient_id'] as int? ?? 0,
-      name: json['name'] as String? ?? '',
+      patientId: json['patient_id']?.toString() ?? '',
+      name: (json['allergy'] ?? json['name']) as String? ?? '',
       severity: json['severity'] as String? ?? 'mild',
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
@@ -193,7 +191,7 @@ class AllergyModel {
 // Medicine model
 class MedicineModel {
   final int id;
-  final int patientId;
+  final String patientId;
   final String name;
   final String dosage;
   final String frequency; // e.g., 'once daily', 'twice daily'
@@ -211,8 +209,8 @@ class MedicineModel {
   factory MedicineModel.fromJson(Map<String, dynamic> json) {
     return MedicineModel(
       id: json['id'] as int? ?? 0,
-      patientId: json['patient_id'] as int? ?? 0,
-      name: json['name'] as String? ?? '',
+      patientId: json['patient_id']?.toString() ?? '',
+      name: (json['medicine'] ?? json['name']) as String? ?? '',
       dosage: json['dosage'] as String? ?? '',
       frequency: json['frequency'] as String? ?? '',
       createdAt: json['created_at'] != null

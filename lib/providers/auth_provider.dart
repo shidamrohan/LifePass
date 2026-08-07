@@ -1,72 +1,73 @@
 import 'package:flutter/material.dart';
-import '../models/api_models.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
-import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/notification_service.dart';
 
 class AuthProvider with ChangeNotifier {
-  final ApiService _apiService;
   final StorageService _storageService;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   AuthProvider({
-    required ApiService apiService,
     required StorageService storageService,
-  })  : _apiService = apiService,
-        _storageService = storageService;
+  }) : _storageService = storageService;
 
   // State variables
   bool _isLoading = false;
   String? _error;
-  String? _authToken;
   UserModel? _user;
   bool _isLoggedIn = false;
 
   // Getters
   bool get isLoading => _isLoading;
   String? get error => _error;
-  String? get authToken => _authToken;
   UserModel? get user => _user;
   bool get isLoggedIn => _isLoggedIn;
 
-  /// Initialize auth state (check if user is logged in)
+  /// Initialize auth state
   Future<void> initialize() async {
     try {
-      // Check if token exists in storage
-      final token = _storageService.getAuthToken();
-      if (token != null && token.isNotEmpty) {
-        _authToken = token;
-        _apiService.setAuthToken(token);
+      final session = _supabase.auth.currentSession;
+      if (session != null) {
         _isLoggedIn = true;
-        
-        // Load user data from storage
-        _loadUserFromStorage();
+        _mapUserFromSupabase(session.user);
+        notificationService.listenForEmergencyAccess();
+      } else {
+        _isLoggedIn = false;
       }
     } catch (e) {
       print('Error initializing auth: $e');
       _isLoggedIn = false;
     }
+    
+    _supabase.auth.onAuthStateChange.listen((data) {
+      final session = data.session;
+      if (session != null) {
+        _isLoggedIn = true;
+        _mapUserFromSupabase(session.user);
+        notificationService.listenForEmergencyAccess();
+      } else {
+        _isLoggedIn = false;
+        _user = null;
+        notificationService.stopListening();
+      }
+      notifyListeners();
+    });
+    
     notifyListeners();
   }
 
-  /// Load user data from storage
-  void _loadUserFromStorage() {
-    final userId = _storageService.getUserId();
-    final email = _storageService.getUserEmail();
-    final name = _storageService.getUserName();
-    final phone = _storageService.getUserPhone();
-    final role = _storageService.getUserRole();
-
-    if (userId != null && email != null && name != null) {
-      _user = UserModel(
-        id: userId,
-        email: email,
-        name: name,
-        phone: phone ?? '',
-        role: role ?? 'patient',
-        isActive: true,
-        createdAt: DateTime.now(),
-      );
-    }
+  void _mapUserFromSupabase(User user) {
+    final metadata = user.userMetadata ?? {};
+    _user = UserModel(
+      id: user.id,
+      email: user.email ?? '',
+      name: metadata['name'] ?? user.email?.split('@')[0] ?? '',
+      phone: metadata['phone'] ?? '',
+      role: metadata['role'] ?? 'patient',
+      isActive: true,
+      createdAt: DateTime.now(),
+    );
   }
 
   /// Register a new user
@@ -82,26 +83,22 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final registerRequest = RegisterRequest(
+      final response = await _supabase.auth.signUp(
         email: email,
         password: password,
-        name: name,
-        phone: phone,
-        role: role,
+        data: {
+          'name': name,
+          'phone': phone,
+          'role': role,
+        },
       );
 
-      final response = await _apiService.post<RegisterResponse>(
-        '/auth/register',
-        body: registerRequest.toJson(),
-        fromJson: (json) => RegisterResponse.fromJson(json as Map<String, dynamic>),
-      );
-
-      if (response.success && response.data != null) {
+      if (response.user != null) {
         _isLoading = false;
         notifyListeners();
         return true;
       } else {
-        _error = response.error ?? 'Registration failed';
+        _error = 'Registration failed';
         _isLoading = false;
         notifyListeners();
         return false;
@@ -124,35 +121,16 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final loginRequest = LoginRequest(email: email, password: password);
-
-      final response = await _apiService.post<LoginResponse>(
-        '/auth/login',
-        body: loginRequest.toJson(),
-        fromJson: (json) => LoginResponse.fromJson(json as Map<String, dynamic>),
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
       );
 
-      if (response.success && response.data != null) {
-        // Save token
-        _authToken = response.data!.accessToken;
-        await _storageService.saveAuthToken(_authToken!);
-        _apiService.setAuthToken(_authToken!);
-
-        final userData = response.data!.user;
-        _user = UserModel(
-          id: userData?['id'] as int? ?? 0,
-          email: userData?['email'] as String? ?? email,
-          name: userData?['name'] as String? ?? email.split('@')[0],
-          phone: userData?['phone'] as String? ?? '',
-          role: userData?['role'] as String? ?? 'patient',
-          isActive: true,
-          createdAt: DateTime.now(),
-        );
+      if (response.user != null) {
+        _mapUserFromSupabase(response.user!);
 
         if (_user!.role != 'patient') {
-          _apiService.clearAuthToken();
-          await _storageService.logout();
-          _authToken = null;
+          await _supabase.auth.signOut();
           _user = null;
           _isLoggedIn = false;
           _error = 'Hospital staff must sign in through the Hospital Portal.';
@@ -161,21 +139,12 @@ class AuthProvider with ChangeNotifier {
           return false;
         }
 
-        // Save user data to storage
-        await _storageService.saveUserData(
-          userId: _user!.id,
-          email: _user!.email,
-          name: _user!.name,
-          phone: _user!.phone,
-          role: _user!.role,
-        );
-
         _isLoggedIn = true;
         _isLoading = false;
         notifyListeners();
         return true;
       } else {
-        _error = response.error ?? 'Login failed';
+        _error = 'Login failed';
         _isLoading = false;
         notifyListeners();
         return false;
@@ -194,14 +163,7 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Clear token from API service
-      _apiService.clearAuthToken();
-
-      // Clear all data from storage
-      await _storageService.logout();
-
-      // Reset state
-      _authToken = null;
+      await _supabase.auth.signOut();
       _user = null;
       _isLoggedIn = false;
       _error = null;
@@ -226,22 +188,10 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiService.post<Map<String, dynamic>>(
-        '/auth/forgot-password',
-        body: {'email': email},
-        fromJson: (json) => json as Map<String, dynamic>,
-      );
-
-      if (response.success) {
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      } else {
-        _error = response.error ?? 'Failed to send reset email';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
+      await _supabase.auth.resetPasswordForEmail(email);
+      _isLoading = false;
+      notifyListeners();
+      return true;
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
@@ -260,25 +210,10 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiService.post<Map<String, dynamic>>(
-        '/auth/change-password',
-        body: {
-          'old_password': oldPassword,
-          'new_password': newPassword,
-        },
-        fromJson: (json) => json as Map<String, dynamic>,
-      );
-
-      if (response.success) {
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      } else {
-        _error = response.error ?? 'Failed to change password';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
+      await _supabase.auth.updateUser(UserAttributes(password: newPassword));
+      _isLoading = false;
+      notifyListeners();
+      return true;
     } catch (e) {
       _error = e.toString();
       _isLoading = false;

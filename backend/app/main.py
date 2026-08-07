@@ -1,12 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1.routes import auth, patient, reports, emergency, qr_codes, hospital, admin
-from app.models import Base
-from app.database import engine
+from app.api.v1.routes import reports
 import os
-
-# Create database tables
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="LifePass API",
@@ -24,13 +19,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(auth.router)
-app.include_router(patient.router)
 app.include_router(reports.router)
-app.include_router(emergency.router)
-app.include_router(qr_codes.router)
-app.include_router(hospital.router)
-app.include_router(admin.router)
 
 @app.get("/")
 def read_root():

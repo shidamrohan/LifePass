@@ -1,276 +1,73 @@
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'dart:async';
 import 'dart:io';
-import '../config/api_config.dart';
-import '../models/api_models.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class ApiResponse<T> {
+  final bool success;
+  final T? data;
+  final String? error;
+  ApiResponse({required this.success, this.data, this.error});
+}
 
 class ApiService {
-  late http.Client _httpClient;
-  String? _authToken;
+  String get _baseUrl => dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:8000/api/v1';
 
-  ApiService() {
-    _httpClient = http.Client();
-  }
+  // Helper to get patient ID from supabase auth
+  String get _patientId => Supabase.instance.client.auth.currentUser?.id ?? '';
 
-  /// Set authentication token (usually after login)
-  void setAuthToken(String token) {
-    _authToken = token;
-  }
-
-  /// Clear authentication token (on logout)
-  void clearAuthToken() {
-    _authToken = null;
-  }
-
-  /// Get authorization headers
-  Map<String, String> _getHeaders() {
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-
-    // Add auth token if available
-    if (_authToken != null && _authToken!.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $_authToken';
-    }
-
-    return headers;
-  }
-
-  /// Make a GET request
-  Future<ApiResponse<T>> get<T>(
-    String endpoint, {
-    required T Function(dynamic json) fromJson,
-    Map<String, String>? additionalHeaders,
-  }) async {
+  Future<ApiResponse<T>> get<T>(String endpoint, {required T Function(dynamic) fromJson}) async {
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
-      final headers = {..._getHeaders(), ...?additionalHeaders};
+      // In old code, patient ID was likely sent or hardcoded. We can just append it if needed,
+      // but let's check the endpoint. 
+      // If the UI doesn't append it, we append it here:
+      String url = '$_baseUrl$endpoint';
+      if (endpoint == '/qr/generate' || endpoint == '/reports/history' || endpoint == '/reports/summary') {
+        url = '$url/$_patientId';
+      }
 
-      final response = await _httpClient
-          .get(url, headers: headers)
-          .timeout(ApiConfig.connectionTimeout);
-
-      return _handleResponse<T>(response, fromJson);
-    } on SocketException catch (e) {
-      return ApiResponse<T>.error(
-        error: 'Network error: ${e.message}',
-        statusCode: 0,
-      );
-    } on TimeoutException catch (_) {
-      return ApiResponse<T>.error(
-        error: 'Request timeout. Please try again.',
-        statusCode: 408,
-      );
-    } catch (e) {
-      return ApiResponse<T>.error(
-        error: 'Error: ${e.toString()}',
-        statusCode: 500,
-      );
-    }
-  }
-
-  /// Make a POST request
-  Future<ApiResponse<T>> post<T>(
-    String endpoint, {
-    required dynamic body,
-    required T Function(dynamic json) fromJson,
-    Map<String, String>? additionalHeaders,
-  }) async {
-    try {
-      final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
-      final headers = {..._getHeaders(), ...?additionalHeaders};
-
-      final response = await _httpClient
-          .post(
-            url,
-            headers: headers,
-            body: jsonEncode(body),
-          )
-          .timeout(ApiConfig.connectionTimeout);
-
-      return _handleResponse<T>(response, fromJson);
-    } on SocketException catch (e) {
-      return ApiResponse<T>.error(
-        error: 'Network error: ${e.message}',
-        statusCode: 0,
-      );
-    } on TimeoutException catch (_) {
-      return ApiResponse<T>.error(
-        error: 'Request timeout. Please try again.',
-        statusCode: 408,
-      );
-    } catch (e) {
-      return ApiResponse<T>.error(
-        error: 'Error: ${e.toString()}',
-        statusCode: 500,
-      );
-    }
-  }
-
-  /// Make a PUT request
-  Future<ApiResponse<T>> put<T>(
-    String endpoint, {
-    required dynamic body,
-    required T Function(dynamic json) fromJson,
-    Map<String, String>? additionalHeaders,
-  }) async {
-    try {
-      final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
-      final headers = {..._getHeaders(), ...?additionalHeaders};
-
-      final response = await _httpClient
-          .put(
-            url,
-            headers: headers,
-            body: jsonEncode(body),
-          )
-          .timeout(ApiConfig.connectionTimeout);
-
-      return _handleResponse<T>(response, fromJson);
-    } on SocketException catch (e) {
-      return ApiResponse<T>.error(
-        error: 'Network error: ${e.message}',
-        statusCode: 0,
-      );
-    } on TimeoutException catch (_) {
-      return ApiResponse<T>.error(
-        error: 'Request timeout. Please try again.',
-        statusCode: 408,
-      );
-    } catch (e) {
-      return ApiResponse<T>.error(
-        error: 'Error: ${e.toString()}',
-        statusCode: 500,
-      );
-    }
-  }
-
-  /// Make a DELETE request
-  Future<ApiResponse<T>> delete<T>(
-    String endpoint, {
-    required T Function(dynamic json) fromJson,
-    Map<String, String>? additionalHeaders,
-  }) async {
-    try {
-      final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
-      final headers = {..._getHeaders(), ...?additionalHeaders};
-
-      final response = await _httpClient
-          .delete(url, headers: headers)
-          .timeout(ApiConfig.connectionTimeout);
-
-      return _handleResponse<T>(response, fromJson);
-    } on SocketException catch (e) {
-      return ApiResponse<T>.error(
-        error: 'Network error: ${e.message}',
-        statusCode: 0,
-      );
-    } on TimeoutException catch (_) {
-      return ApiResponse<T>.error(
-        error: 'Request timeout. Please try again.',
-        statusCode: 408,
-      );
-    } catch (e) {
-      return ApiResponse<T>.error(
-        error: 'Error: ${e.toString()}',
-        statusCode: 500,
-      );
-    }
-  }
-
-  /// Upload a report using multipart/form-data.
-  Future<ApiResponse<Map<String, dynamic>>> uploadReport({
-    required String path,
-    required String reportType,
-  }) async {
-    try {
-      final request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/reports/upload'));
-      if (_authToken != null && _authToken!.isNotEmpty) request.headers['Authorization'] = 'Bearer $_authToken';
-      request.fields['report_type'] = reportType;
-      request.files.add(await http.MultipartFile.fromPath('file', path));
-      final streamed = await request.send().timeout(ApiConfig.connectionTimeout);
-      final response = await http.Response.fromStream(streamed);
-      return _handleResponse<Map<String, dynamic>>(response, (json) => json as Map<String, dynamic>);
-    } on TimeoutException {
-      return ApiResponse<Map<String, dynamic>>.error(error: 'Upload timed out. Please try again.', statusCode: 408);
-    } catch (e) {
-      return ApiResponse<Map<String, dynamic>>.error(error: 'Upload failed: $e', statusCode: 500);
-    }
-  }
-
-  /// Handle API response
-  ApiResponse<T> _handleResponse<T>(
-    http.Response response,
-    T Function(dynamic json) fromJson,
-  ) {
-    final statusCode = response.statusCode;
-
-    try {
-      final jsonBody = jsonDecode(response.body);
-
-      if (statusCode >= 200 && statusCode < 300) {
-        // Success response
-        final data = fromJson(jsonBody);
-        return ApiResponse<T>.success(
-          data: data,
-          statusCode: statusCode,
-        );
-      } else if (statusCode == 401) {
-        // Unauthorized - token expired
-        clearAuthToken();
-        return ApiResponse<T>.error(
-          error: jsonBody['detail'] ?? 'Unauthorized. Please login again.',
-          statusCode: statusCode,
-        );
-      } else if (statusCode == 400) {
-        // Bad request
-        return ApiResponse<T>.error(
-          error: jsonBody['detail'] ?? 'Bad request. Please check your input.',
-          statusCode: statusCode,
-        );
-      } else if (statusCode == 404) {
-        // Not found
-        return ApiResponse<T>.error(
-          error: jsonBody['detail'] ?? 'Resource not found.',
-          statusCode: statusCode,
-        );
-      } else if (statusCode == 500) {
-        // Server error
-        return ApiResponse<T>.error(
-          error: 'Server error. Please try again later.',
-          statusCode: statusCode,
-        );
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        return ApiResponse(success: true, data: fromJson(decoded));
       } else {
-        // Other error
-        return ApiResponse<T>.error(
-          error: jsonBody['detail'] ?? 'An error occurred.',
-          statusCode: statusCode,
-        );
+        return ApiResponse(success: false, error: 'Server error: ${response.statusCode}');
       }
     } catch (e) {
-      // JSON parse error
-      return ApiResponse<T>.error(
-        error: 'Failed to parse response: ${e.toString()}',
-        statusCode: statusCode,
-      );
+      return ApiResponse(success: false, error: e.toString());
     }
   }
 
-  /// Test API connectivity
-  Future<bool> testConnection() async {
+  Future<ApiResponse<Map<String, dynamic>>> uploadReport({required String path, required String reportType}) async {
     try {
-      final response = await get<Map<String, dynamic>>(
-        '/health',
-        fromJson: (json) => json as Map<String, dynamic>,
-      );
-      return response.success;
+      final file = File(path);
+      final fileName = '${_patientId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      
+      // Upload to Supabase Storage (bucket 'reports')
+      await Supabase.instance.client.storage
+          .from('reports')
+          .upload(fileName, file);
+          
+      // Get public URL
+      final fileUrl = Supabase.instance.client.storage
+          .from('reports')
+          .getPublicUrl(fileName);
+          
+      // Now insert record into database so Python worker can process it
+      await Supabase.instance.client.from('medical_reports').insert({
+        'patient_id': _patientId,
+        'report_type': reportType,
+        'file_url': fileUrl,
+        'status': 'pending',
+      });
+      
+      return ApiResponse(success: true, data: {'message': 'Report uploaded. Processing in background.'});
     } catch (e) {
-      return false;
+      return ApiResponse(success: false, error: e.toString());
     }
   }
 }
 
-// Global API service instance (singleton)
 final apiService = ApiService();

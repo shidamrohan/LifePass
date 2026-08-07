@@ -1,6 +1,6 @@
 // User model representing a user in the system
 class UserModel {
-  final int id;
+  final String id;
   final String email;
   final String name;
   final String phone;
@@ -22,7 +22,7 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id'] as int? ?? 0,
+      id: json['id'] as String? ?? '',
       email: json['email'] as String? ?? '',
       name: json['name'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
@@ -52,7 +52,7 @@ class UserModel {
 
   // Copy with method for updating fields
   UserModel copyWith({
-    int? id,
+    String? id,
     String? email,
     String? name,
     String? phone,

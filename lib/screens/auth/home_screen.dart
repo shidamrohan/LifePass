@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/patient_provider.dart';
 import '../medical/diseases_screen.dart';
@@ -570,15 +571,22 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         trailing: profile?.emergencyContactPhone != null
                             ? ElevatedButton.icon(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'Calling: ${profile!.emergencyContactPhone}'),
-                                      backgroundColor: Colors.red[700],
-                                    ),
-                                  );
-                                },
+                              onPressed: () async {
+                                final phone = profile!.emergencyContactPhone!;
+                                final url = Uri.parse('tel:$phone');
+                                if (await canLaunchUrl(url)) {
+                                  await launchUrl(url);
+                                } else {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Could not launch dialer for $phone'),
+                                        backgroundColor: Colors.red[700],
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
                                 icon: const Icon(Icons.call, size: 16),
                                 label: const Text('Call'),
                                 style: ElevatedButton.styleFrom(

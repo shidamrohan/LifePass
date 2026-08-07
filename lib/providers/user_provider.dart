@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
-import '../services/api_service.dart';
 
 class UserProvider with ChangeNotifier {
-  UserProvider({required ApiService apiService});
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  UserProvider();
 
   // State variables
   UserModel? _currentUser;
@@ -38,24 +40,19 @@ class UserProvider with ChangeNotifier {
         return false;
       }
 
-      // TODO: Make API call to update user
-      // final response = await _apiService.put<UserModel>(
-      //   '/user/profile',
-      //   body: {'name': name, 'phone': phone},
-      //   fromJson: (json) => UserModel.fromJson(json),
-      // );
+      await _supabase.auth.updateUser(
+        UserAttributes(
+          data: {
+            'name': name,
+            'phone': phone,
+          },
+        ),
+      );
 
-      // if (response.success && response.data != null) {
-      //   _currentUser = response.data;
-      //   _isLoading = false;
-      //   notifyListeners();
-      //   return true;
-      // }
-
-      _error = 'Failed to update profile';
+      _currentUser = _currentUser!.copyWith(name: name, phone: phone);
       _isLoading = false;
       notifyListeners();
-      return false;
+      return true;
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
@@ -74,23 +71,10 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // TODO: Make API call to change password
-      // final response = await _apiService.post<Map<String, dynamic>>(
-      //   '/user/change-password',
-      //   body: {'old_password': oldPassword, 'new_password': newPassword},
-      //   fromJson: (json) => json as Map<String, dynamic>,
-      // );
-
-      // if (response.success) {
-      //   _isLoading = false;
-      //   notifyListeners();
-      //   return true;
-      // }
-
-      _error = 'Failed to change password';
+      await _supabase.auth.updateUser(UserAttributes(password: newPassword));
       _isLoading = false;
       notifyListeners();
-      return false;
+      return true;
     } catch (e) {
       _error = e.toString();
       _isLoading = false;

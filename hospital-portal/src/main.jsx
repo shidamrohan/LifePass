@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Html5Qrcode } from 'html5-qrcode';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 import {
   Shield,
   Search,
@@ -24,21 +29,7 @@ import {
 } from 'lucide-react';
 import './styles.css';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-
-const request = async (path, options = {}, token) => {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-  const response = await fetch(`${API}${path}`, {
-    ...options,
-    headers: { ...headers, ...options.headers },
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.detail || 'Request failed');
-  return data;
-};
+// request replaced by supabase
 
 // ─────────────────────────────────────────────────────────────
 // WEBCAM QR SCANNER COMPONENT (Universal html5-qrcode implementation)
@@ -130,14 +121,17 @@ function Login({ onLogin }) {
     setLoading(true);
     setError('');
     try {
-      const data = await request('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-      if (data.user?.role !== 'hospital_staff' && data.user?.role !== 'admin') {
+      if (authError) throw authError;
+      
+      const role = data.user?.user_metadata?.role || 'admin'; // fallback to admin for testing
+      if (role !== 'hospital_staff' && role !== 'admin') {
         throw new Error('This portal is restricted to authorized hospital or admin staff.');
       }
-      onLogin(data);
+      onLogin({ ...data, user: { ...data.user, role, name: data.user?.user_metadata?.name || 'Staff' }, access_token: data.session?.access_token });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -217,77 +211,149 @@ function InfoTile({ title, value, danger, fullWidth, icon: Icon }) {
 }
 
 function PatientProfileView({ patient, onNote }) {
-  const diseases = (patient.chronic_diseases || []).join(', ') || 'No chronic conditions recorded';
-  const allergiesList = (patient.allergies || []).map((x) => typeof x === 'string' ? x : `${x.allergy} (${x.severity})`);
-  const allergies = allergiesList.join(', ') || 'No allergies recorded';
+  const [showFullHistory, setShowFullHistory] = useState(false);
+
+  // Level 1: Critical Info
+  const hasSevereAllergies = (patient.allergies || []).some(x => x.severity === 'severe');
+  const allergiesList = (patient.allergies || []).map(x => `${x.allergy} (${x.severity})`);
+  const allergies = allergiesList.length > 0 ? allergiesList.join(', ') : 'None recorded';
   
-  const meds = typeof patient.current_medications === 'string' 
-      ? patient.current_medications
-      : (patient.current_medications || [])
-      .map((x) => `${x.name} — ${x.dosage} (${x.frequency})`)
-      .join('\n') || 'No active medications recorded';
+  const diseasesList = (patient.diseases || []).map(x => x.disease_name);
+  const diseases = diseasesList.length > 0 ? diseasesList.join(', ') : 'None recorded';
+  
+  const medsList = (patient.medicines || []).map(x => `${x.medicine} — ${x.dosage}`);
+  const meds = medsList.length > 0 ? medsList.join(', ') : 'None recorded';
+
+  // Level 2: AI Summary
+  const latestSummary = Array.isArray(patient.ai_summary) && patient.ai_summary.length > 0 
+    ? patient.ai_summary[0].summary 
+    : 'No AI summary generated for this patient.';
+
+  const riskLevel = Array.isArray(patient.ai_summary) && patient.ai_summary.length > 0 
+    ? patient.ai_summary[0].risk_level 
+    : 'unknown';
 
   return (
-    <section className="profile card">
-      <div className="profileHead">
+    <section className="profile-container" style={{ display: 'grid', gap: '20px' }}>
+      
+      {/* HEADER: Basic Info */}
+      <div className="card profileHead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <span className="eyebrow">Emergency profile</span>
-          <h2>{patient.patient_name}</h2>
-          <p style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-            <User size={14} />
-            Patient ID: #{patient.patient_id}
+          <span className="eyebrow" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Emergency Profile</span>
+          <h2 style={{ fontSize: '1.8rem', margin: '4px 0' }}>{patient.name}</h2>
+          <p style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
+            <User size={14} /> Patient ID: #{patient.id.split('-')[0]} • Gender: {patient.gender || 'N/A'} • Age: {patient.dob ? new Date().getFullYear() - new Date(patient.dob).getFullYear() : 'N/A'}
           </p>
         </div>
-        <span className={`risk ${patient.risk_level || 'unknown'}`}>
-          <span className="dot" style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: 'currentColor'
-          }}></span>
-          {patient.risk_level ? `${patient.risk_level} risk` : 'Risk level unavailable'}
+        <span className={`risk ${riskLevel}`} style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px',
+            borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600,
+            backgroundColor: riskLevel === 'High' ? '#fdeaea' : riskLevel === 'Medium' ? '#fef3c7' : '#e0f2fe',
+            color: riskLevel === 'High' ? '#ef4444' : riskLevel === 'Medium' ? '#d97706' : '#0284c7'
+        }}>
+          <span className="dot" style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'currentColor' }}></span>
+          {riskLevel !== 'unknown' ? `${riskLevel} Risk` : 'Risk N/A'}
         </span>
       </div>
 
-      <div className="profile-grid">
-        <InfoTile
-          title="Blood Group"
-          value={patient.blood_group || 'Not recorded'}
-          danger={patient.blood_group === 'O-' || patient.blood_group === 'AB-'}
-          icon={HeartPulse}
-        />
-        <InfoTile
-          title="Emergency Contact"
-          value={`${patient.emergency_contact || 'None'}\n${patient.emergency_contact_phone || 'None'}`}
-          icon={User}
-        />
-        <InfoTile
-          title="Chronic Conditions"
-          value={diseases}
-          icon={ClipboardList}
-        />
-        <InfoTile
-          title="Allergies & Severities"
-          value={allergies}
-          danger={(patient.allergies || []).some((x) => x.severity === 'severe')}
-          icon={AlertTriangle}
-        />
-        <InfoTile
-          title="Current Medications"
-          value={meds}
-          icon={FileText}
-        />
-        <InfoTile
-          title="AI Emergency Summary"
-          value={patient.ai_summary || 'No AI summary generated for this patient.'}
-          fullWidth
-          icon={Activity}
-        />
+      {/* LEVEL 1: CRITICAL ALERTS CARD */}
+      <div className="card" style={{ border: '2px solid #ef4444', backgroundColor: '#fef2f2', padding: '24px' }}>
+        <h3 style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', marginBottom: '16px' }}>
+          <AlertTriangle size={20} />
+          CRITICAL ALERTS
+        </h3>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+          <div>
+            <strong style={{ color: '#991b1b', display: 'flex', alignItems: 'center', gap: '4px' }}><HeartPulse size={14}/> Blood Group</strong>
+            <p style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#7f1d1d' }}>{patient.blood_group || 'Unknown'}</p>
+          </div>
+          <div>
+            <strong style={{ color: '#991b1b', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={14}/> Allergies</strong>
+            <p style={{ fontWeight: hasSevereAllergies ? 'bold' : 'normal', color: hasSevereAllergies ? '#ef4444' : '#7f1d1d' }}>{allergies}</p>
+          </div>
+          <div>
+            <strong style={{ color: '#991b1b', display: 'flex', alignItems: 'center', gap: '4px' }}><ClipboardList size={14}/> Chronic Diseases</strong>
+            <p style={{ color: '#7f1d1d' }}>{diseases}</p>
+          </div>
+          <div>
+            <strong style={{ color: '#991b1b', display: 'flex', alignItems: 'center', gap: '4px' }}><FileText size={14}/> Current Meds</strong>
+            <p style={{ color: '#7f1d1d' }}>{meds}</p>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #fca5a5' }}>
+          <strong style={{ color: '#991b1b', display: 'flex', alignItems: 'center', gap: '4px' }}><User size={14}/> Emergency Contact</strong>
+          <p style={{ color: '#7f1d1d', fontWeight: 'bold', fontSize: '1.1rem' }}>{patient.emergency_contact || 'None'} • {patient.emergency_contact_phone || 'None'}</p>
+        </div>
       </div>
 
-      <button className="primary" onClick={onNote} style={{ alignSelf: 'start', marginTop: '8px' }}>
-        <Plus size={18} />
-        Add Emergency Treatment Note
+      {/* LEVEL 2: AI EMERGENCY SUMMARY */}
+      <div className="card">
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: 'var(--accent-green)' }}>
+          <Activity size={18} />
+          AI Emergency Summary
+        </h3>
+        <p style={{ lineHeight: '1.6', color: 'var(--text-primary)' }}>{latestSummary}</p>
+      </div>
+
+      {/* LEVEL 3: COMPLETE MEDICAL HISTORY (COLLAPSIBLE) */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <button 
+          onClick={() => setShowFullHistory(!showFullHistory)}
+          style={{ width: '100%', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold', fontSize: '1.1rem' }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Database size={18} />
+            View Complete Medical History
+          </span>
+          <span>{showFullHistory ? '▲' : '▼'}</span>
+        </button>
+        
+        {showFullHistory && (
+          <div style={{ padding: '20px', borderTop: '1px solid var(--border-color)', display: 'grid', gap: '24px' }}>
+            
+            <div className="history-section">
+              <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '12px' }}>Chronic Conditions</h4>
+              {patient.diseases && patient.diseases.length > 0 ? (
+                <ul style={{ paddingLeft: '20px' }}>
+                  {patient.diseases.map((d, i) => <li key={i}>{d.disease_name} <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>(Diagnosed: {d.diagnosed_date || 'Unknown'})</span></li>)}
+                </ul>
+              ) : <p style={{ color: 'var(--text-muted)' }}>No records found.</p>}
+            </div>
+
+            <div className="history-section">
+              <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '12px' }}>Current Medications</h4>
+              {patient.medicines && patient.medicines.length > 0 ? (
+                <ul style={{ paddingLeft: '20px' }}>
+                  {patient.medicines.map((m, i) => <li key={i}>{m.medicine} - {m.dosage} <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>({m.frequency})</span></li>)}
+                </ul>
+              ) : <p style={{ color: 'var(--text-muted)' }}>No records found.</p>}
+            </div>
+
+            <div className="history-section">
+              <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '12px' }}>Uploaded Medical Reports</h4>
+              {patient.medical_reports && patient.medical_reports.length > 0 ? (
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  {patient.medical_reports.map((r, i) => (
+                    <a key={i} href={r.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', border: '1px solid var(--border-color)', borderRadius: '6px', textDecoration: 'none', color: 'var(--text-primary)' }}>
+                      <FileText size={16} style={{ color: 'var(--accent-green)' }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 'bold' }}>{r.report_type}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Uploaded: {new Date(r.upload_date).toLocaleDateString()}</div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : <p style={{ color: 'var(--text-muted)' }}>No reports uploaded.</p>}
+            </div>
+
+          </div>
+        )}
+      </div>
+
+      <button className="primary" onClick={onNote} style={{ alignSelf: 'start' }}>
+        <Plus size={18} /> Add Emergency Treatment Note
       </button>
     </section>
   );
@@ -376,21 +442,26 @@ function AdminPortal({ session, onLogout }) {
     e.preventDefault();
     setRegLoading(true);
     try {
-      await request('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: regName,
-          email: regEmail,
-          phone: regPhone,
-          password: regPassword,
-          role: 'hospital_staff'
-        })
+      const { error } = await supabase.auth.signUp({
+        email: regEmail,
+        password: regPassword,
+        options: {
+          data: {
+            name: regName,
+            phone: regPhone,
+            role: 'hospital_staff'
+          }
+        }
       });
+      if (error) throw error;
+      
+      // The trigger handle_new_user automatically inserts into the profiles table
+      
       alert('Hospital registered successfully!');
       setRegisterModal(false);
       setRegName(''); setRegEmail(''); setRegPhone(''); setRegPassword('');
-      const res = await request('/admin/hospitals', {}, session.access_token);
-      setHospitals(res);
+      const { data: res } = await supabase.from('profiles').select('*').eq('role', 'hospital_staff');
+      setHospitals(res || []);
     } catch (err) {
       alert(err.message || 'Registration failed');
     } finally {
@@ -402,17 +473,23 @@ function AdminPortal({ session, onLogout }) {
     const fetchData = async () => {
       try {
         if (activeTab === 'dashboard') {
-          const res = await request('/admin/stats', {}, session.access_token);
-          setStats(res);
+          const { count: total_hospitals } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'hospital_staff');
+          const { count: total_patients } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'patient');
+          const { count: active_emergencies } = await supabase.from('audit_logs').select('*', { count: 'exact', head: true });
+          setStats({
+            total_hospitals: total_hospitals || 0,
+            total_patients: total_patients || 0,
+            active_emergencies: active_emergencies || 0
+          });
         } else if (activeTab === 'hospitals') {
-          const res = await request('/admin/hospitals', {}, session.access_token);
-          setHospitals(res);
+          const { data } = await supabase.from('profiles').select('*').eq('role', 'hospital_staff');
+          setHospitals(data || []);
         } else if (activeTab === 'patients') {
-          const res = await request('/admin/patients', {}, session.access_token);
-          setPatients(res);
+          const { data } = await supabase.from('profiles').select('*').eq('role', 'patient');
+          setPatients(data || []);
         } else if (activeTab === 'logs') {
-          const res = await request('/admin/logs', {}, session.access_token);
-          setLogs(res);
+          const { data } = await supabase.from('audit_logs').select('*');
+          setLogs(data || []);
         }
       } catch (e) {
         console.error('Failed to fetch admin data:', e);
@@ -506,10 +583,10 @@ function AdminPortal({ session, onLogout }) {
             <tbody>
               {patients.map(p => (
                 <tr key={p.id}>
-                  <td>#{p.patient_id}</td>
+                  <td>#{p.id.split('-')[0]}</td>
                   <td style={{ fontWeight: 600 }}>{p.name}</td>
-                  <td>{p.blood_group}</td>
-                  <td><span className={`badge ${p.risk_level === 'High' ? 'danger' : ''}`}>{p.risk_level}</span></td>
+                  <td>{p.blood_group || 'N/A'}</td>
+                  <td><span className={`badge ${p.risk_level === 'High' ? 'danger' : ''}`}>{p.risk_level || 'N/A'}</span></td>
                 </tr>
               ))}
               {patients.length === 0 && (
@@ -535,8 +612,8 @@ function AdminPortal({ session, onLogout }) {
             <tbody>
               {logs.map(log => (
                 <tr key={log.id}>
-                  <td>{new Date(log.time).toLocaleString()}</td>
-                  <td style={{ textTransform: 'capitalize', color: 'var(--accent-green)' }}>{log.action.replaceAll('_', ' ')}</td>
+                  <td>{new Date(log.time || log.created_at).toLocaleString()}</td>
+                  <td style={{ textTransform: 'capitalize', color: 'var(--accent-green)' }}>{(log.action || '').replaceAll('_', ' ')}</td>
                   <td>#{log.doctor_id}</td>
                   <td>#{log.patient_id}</td>
                   <td style={{ color: 'var(--text-muted)' }}>{log.ip_address || 'N/A'}</td>
@@ -620,21 +697,38 @@ function HospitalPortal({ session, onLogout }) {
     setError('');
     try {
       let id = value;
-      // If the input is not a plain numeric ID, treat it as an encrypted token
-      if (!/^\d+$/.test(value)) {
-        const qr = await request(
-          '/qr/scan',
-          {
-            method: 'POST',
-            body: JSON.stringify({ encrypted_token: value }),
-          },
-          session.access_token
-        );
-        id = qr.patient_id;
-        // The QR code backend route automatically invalidates the QR now!
-        alert(qr.message); 
+      if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value)) {
+        const { data: qr } = await supabase.from('qr_codes').select('patient_id').eq('encrypted_token', value).single();
+        if (qr) {
+          id = qr.patient_id;
+          // Destroy QR code to ensure it is single-use
+          await supabase.from('qr_codes').delete().eq('patient_id', id);
+          alert('QR code successfully scanned and invalidated.');
+        } else {
+          throw new Error('Invalid or expired QR token.');
+        }
       }
-      const data = await request(`/hospital/patient/${id}`, {}, session.access_token);
+      
+      const { data, error: pError } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          diseases(disease_name, diagnosed_date),
+          allergies(allergy, severity),
+          medicines(medicine, dosage, frequency),
+          ai_summary(summary, risk_level),
+          medical_reports(report_type, file_url, upload_date)
+        `)
+        .eq('id', id)
+        .single();
+        
+      if (pError || !data) throw new Error('Patient profile not found.');
+      
+      // Order AI summaries descending if multiple exist, though limit is implicitly handled if we get an array
+      if (Array.isArray(data.ai_summary)) {
+         data.ai_summary.sort((a, b) => new Date(b.generated_at) - new Date(a.generated_at));
+      }
+      
       setPatient(data);
       setQuery(value);
     } catch (e) {
@@ -653,18 +747,14 @@ function HospitalPortal({ session, onLogout }) {
         .map((x) => x.trim())
         .filter(Boolean);
 
-      await request(
-        '/hospital/treatment',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            patient_id: patient.patient_id,
-            notes,
-            medications: medicationsArray,
-          }),
-        },
-        session.access_token
-      );
+      const { error } = await supabase.from('audit_logs').insert([{
+        patient_id: patient.id,
+        doctor_id: session.user.id,
+        action: 'treatment_record',
+        details: { notes, medications: medicationsArray },
+        time: new Date().toISOString()
+      }]);
+      if (error) throw error;
       setNoteModal(false);
       setNotes('');
       setMeds('');
@@ -676,8 +766,9 @@ function HospitalPortal({ session, onLogout }) {
 
   const showActivity = async () => {
     try {
-      const data = await request('/hospital/my-activity', {}, session.access_token);
-      setActivity(data.activity || []);
+      const { data, error } = await supabase.from('audit_logs').select('*').eq('doctor_id', session.user.id);
+      if (error) throw error;
+      setActivity(data || []);
     } catch (e) {
       setError(e.message || 'Failed to fetch clinical logs.');
     }
@@ -770,19 +861,24 @@ function HospitalPortal({ session, onLogout }) {
           ) : (
             <ul>
               {activity.map((x, i) => (
-                <li key={i}>
+                <li key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div className="desc">
                     <User size={16} style={{ color: 'var(--text-secondary)' }} />
                     <div>
                       <strong style={{ textTransform: 'capitalize' }}>
-                        {x.action.replaceAll('_', ' ')}
+                        {(x.action || '').replaceAll('_', ' ')}
                       </strong>
                       <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginLeft: '8px' }}>
-                        (Patient ID: #{x.patient_id})
+                        (Patient ID: #{x.patient_id.split('-')[0]})
                       </span>
                     </div>
                   </div>
-                  <span className="time">{new Date(x.timestamp).toLocaleString()}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span className="time">{new Date(x.timestamp || x.time || x.created_at).toLocaleString()}</span>
+                    <button className="secondary" onClick={() => { setActiveTab('scan'); lookup(x.patient_id); }} style={{ padding: '4px 10px', fontSize: '0.8rem' }}>
+                      View Profile
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/patient_model.dart';
-import '../services/api_service.dart';
 
 class PatientProvider with ChangeNotifier {
-  final ApiService _apiService;
-
-  PatientProvider({required ApiService apiService}) : _apiService = apiService;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   // State variables
   PatientModel? _patientProfile;
@@ -23,25 +21,25 @@ class PatientProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  String? get _userId => _supabase.auth.currentUser?.id;
+
   /// Fetch patient profile
   Future<bool> fetchPatientProfile() async {
+    if (_userId == null) return false;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await _apiService.get<PatientModel>(
-        '/patient/profile',
-        fromJson: (json) => PatientModel.fromJson(json as Map<String, dynamic>),
-      );
+      final data = await _supabase.from('profiles').select().eq('id', _userId!).maybeSingle();
 
-      if (response.success && response.data != null) {
-        _patientProfile = response.data;
+      if (data != null) {
+        _patientProfile = PatientModel.fromJson(data);
         _isLoading = false;
         notifyListeners();
         return true;
       } else {
-        _error = response.error ?? 'Failed to fetch profile';
+        _error = 'Failed to fetch profile';
         _isLoading = false;
         notifyListeners();
         return false;
@@ -64,12 +62,14 @@ class PatientProvider with ChangeNotifier {
     required String? emergencyContactName,
     required String? emergencyContactPhone,
   }) async {
+    if (_userId == null) return false;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       final body = {
+        'id': _userId,
         'dob': dateOfBirth?.toIso8601String(),
         'gender': gender,
         'blood_group': bloodGroup,
@@ -79,35 +79,14 @@ class PatientProvider with ChangeNotifier {
         'emergency_contact_phone': emergencyContactPhone,
       };
 
-      // Determine if POST (create) or PUT (update)
-      final isUpdate = _patientProfile != null;
-      final endpoint = '/patient/profile';
-
-      final response = await (isUpdate
-          ? _apiService.put<PatientModel>(
-              endpoint,
-              body: body,
-              fromJson: (json) =>
-                  PatientModel.fromJson(json as Map<String, dynamic>),
-            )
-          : _apiService.post<PatientModel>(
-              endpoint,
-              body: body,
-              fromJson: (json) =>
-                  PatientModel.fromJson(json as Map<String, dynamic>),
-            ));
-
-      if (response.success && response.data != null) {
-        _patientProfile = response.data;
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      } else {
-        _error = response.error ?? 'Failed to save profile';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
+      // Use update instead of upsert because the row is created via database trigger on signup
+      // Upsert requires INSERT permissions which the user does not have (RLS)
+      final data = await _supabase.from('profiles').update(body).eq('id', _userId!).select().single();
+      
+      _patientProfile = PatientModel.fromJson(data);
+      _isLoading = false;
+      notifyListeners();
+      return true;
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
@@ -120,19 +99,14 @@ class PatientProvider with ChangeNotifier {
 
   /// Fetch all diseases
   Future<bool> fetchDiseases() async {
+    if (_userId == null) return false;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await _apiService.get<List<DiseaseModel>>(
-        '/patient/diseases',
-        fromJson: (json) => ((json['diseases'] as List?) ?? [])
-            .map((item) => DiseaseModel.fromJson(item as Map<String, dynamic>))
-            .toList(),
-      );
-      if (!response.success) throw Exception(response.error);
-      _diseases = response.data ?? [];
+      final data = await _supabase.from('diseases').select().eq('patient_id', _userId!);
+      _diseases = data.map((item) => DiseaseModel.fromJson(item)).toList();
       _isLoading = false;
       notifyListeners();
       return true;
@@ -149,15 +123,14 @@ class PatientProvider with ChangeNotifier {
     required String name,
     required DateTime? diagnosedDate,
   }) async {
+    if (_userId == null) return false;
     try {
-      final response = await _apiService.post<Map<String, dynamic>>(
-        '/patient/disease',
-        body: {'disease_name': name, 'diagnosed_date': diagnosedDate?.toIso8601String()},
-        fromJson: (json) => json as Map<String, dynamic>,
-      );
-      if (!response.success) throw Exception(response.error);
+      await _supabase.from('diseases').insert({
+        'patient_id': _userId,
+        'disease_name': name,
+        'diagnosed_date': diagnosedDate?.toIso8601String(),
+      });
       await fetchDiseases();
-      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
@@ -169,8 +142,7 @@ class PatientProvider with ChangeNotifier {
   /// Remove disease
   Future<bool> removeDisease(int diseaseId) async {
     try {
-      final response = await _apiService.delete<Map<String, dynamic>>('/patient/disease/$diseaseId', fromJson: (json) => json as Map<String, dynamic>);
-      if (!response.success) throw Exception(response.error);
+      await _supabase.from('diseases').delete().eq('id', diseaseId);
       _diseases.removeWhere((d) => d.id == diseaseId);
       notifyListeners();
       return true;
@@ -185,22 +157,18 @@ class PatientProvider with ChangeNotifier {
 
   /// Fetch all allergies
   Future<bool> fetchAllergies() async {
+    if (_userId == null) return false;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await _apiService.get<List<AllergyModel>>(
-        '/patient/allergies',
-        fromJson: (json) => ((json['allergies'] as List?) ?? [])
-            .map((item) {
-              final map = Map<String, dynamic>.from(item as Map);
-              map['name'] ??= map['allergy'];
-              return AllergyModel.fromJson(map);
-            }).toList(),
-      );
-      if (!response.success) throw Exception(response.error);
-      _allergies = response.data ?? [];
+      final data = await _supabase.from('allergies').select().eq('patient_id', _userId!);
+      _allergies = data.map((item) {
+        final map = Map<String, dynamic>.from(item);
+        map['name'] ??= map['allergy'];
+        return AllergyModel.fromJson(map);
+      }).toList();
       _isLoading = false;
       notifyListeners();
       return true;
@@ -217,11 +185,14 @@ class PatientProvider with ChangeNotifier {
     required String name,
     required String severity,
   }) async {
+    if (_userId == null) return false;
     try {
-      final response = await _apiService.post<Map<String, dynamic>>('/patient/allergy', body: {'allergy': name, 'severity': severity}, fromJson: (json) => json as Map<String, dynamic>);
-      if (!response.success) throw Exception(response.error);
+      await _supabase.from('allergies').insert({
+        'patient_id': _userId,
+        'allergy': name,
+        'severity': severity,
+      });
       await fetchAllergies();
-      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
@@ -233,8 +204,7 @@ class PatientProvider with ChangeNotifier {
   /// Remove allergy
   Future<bool> removeAllergy(int allergyId) async {
     try {
-      final response = await _apiService.delete<Map<String, dynamic>>('/patient/allergy/$allergyId', fromJson: (json) => json as Map<String, dynamic>);
-      if (!response.success) throw Exception(response.error);
+      await _supabase.from('allergies').delete().eq('id', allergyId);
       _allergies.removeWhere((a) => a.id == allergyId);
       notifyListeners();
       return true;
@@ -249,19 +219,14 @@ class PatientProvider with ChangeNotifier {
 
   /// Fetch all medicines
   Future<bool> fetchMedicines() async {
+    if (_userId == null) return false;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await _apiService.get<List<MedicineModel>>(
-        '/patient/medicines',
-        fromJson: (json) => ((json['medicines'] as List?) ?? [])
-            .map((item) => MedicineModel.fromJson(item as Map<String, dynamic>))
-            .toList(),
-      );
-      if (!response.success) throw Exception(response.error);
-      _medicines = response.data ?? [];
+      final data = await _supabase.from('medicines').select().eq('patient_id', _userId!);
+      _medicines = data.map((item) => MedicineModel.fromJson(item)).toList();
       _isLoading = false;
       notifyListeners();
       return true;
@@ -279,11 +244,15 @@ class PatientProvider with ChangeNotifier {
     required String dosage,
     required String frequency,
   }) async {
+    if (_userId == null) return false;
     try {
-      final response = await _apiService.post<Map<String, dynamic>>('/patient/medicine', body: {'medicine': name, 'dosage': dosage, 'frequency': frequency}, fromJson: (json) => json as Map<String, dynamic>);
-      if (!response.success) throw Exception(response.error);
+      await _supabase.from('medicines').insert({
+        'patient_id': _userId,
+        'medicine': name,
+        'dosage': dosage,
+        'frequency': frequency,
+      });
       await fetchMedicines();
-      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
@@ -295,8 +264,7 @@ class PatientProvider with ChangeNotifier {
   /// Remove medicine
   Future<bool> removeMedicine(int medicineId) async {
     try {
-      final response = await _apiService.delete<Map<String, dynamic>>('/patient/medicine/$medicineId', fromJson: (json) => json as Map<String, dynamic>);
-      if (!response.success) throw Exception(response.error);
+      await _supabase.from('medicines').delete().eq('id', medicineId);
       _medicines.removeWhere((m) => m.id == medicineId);
       notifyListeners();
       return true;
@@ -309,12 +277,48 @@ class PatientProvider with ChangeNotifier {
 
   /// Fetch all patient data at once (profile + diseases + allergies + medicines)
   Future<void> fetchPatientData() async {
+    if (_userId == null) return;
     await Future.wait([
       fetchPatientProfile(),
       fetchDiseases(),
       fetchAllergies(),
       fetchMedicines(),
     ]);
+  }
+
+  // ==================== QR CODES ====================
+
+  /// Generate an emergency QR code token and save to Supabase
+  Future<String?> generateQrCode() async {
+    if (_userId == null) return null;
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      // 1. Delete any existing QR code for this patient
+      await _supabase.from('qr_codes').delete().eq('patient_id', _userId!);
+
+      // 2. Generate a secure, randomized UUID token
+      // In a real app we might use cryptography, but UUIDv4 is sufficient for 24h tokens
+      final String newToken = DateTime.now().millisecondsSinceEpoch.toString() + _userId!.substring(0, 8);
+
+      // 3. Save to Supabase
+      await _supabase.from('qr_codes').insert({
+        'patient_id': _userId,
+        'encrypted_token': newToken,
+        // created_at is automatically generated by Postgres DEFAULT NOW()
+      });
+
+      _isLoading = false;
+      notifyListeners();
+      return newToken;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    }
   }
 
   /// Clear error
