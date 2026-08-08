@@ -1,8 +1,6 @@
-# LifePass
 
-AI-Powered Emergency Health Identity Platform
 
-# 🏥 LifePass: Cloud-Native Emergency Medical Profile System
+# 🏥 LifePass: Emergency Medical Information & Health Identity Platform
 
 LifePass is a secure, serverless medical profile system designed to provide first responders and hospital staff with instant access to a patient's critical health information during emergencies. By bridging the gap between personal mobile devices and hospital infrastructure through secure QR code scanning, LifePass ensures that life-saving medical context is always available when every second counts.
 
