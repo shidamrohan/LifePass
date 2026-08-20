@@ -69,4 +69,11 @@ Here are the sample test credentials you can use across the system:
 - **Email**: `admin@lifepass.com` 
 - **Password**: `Password123`
 
+-By
+
+Rohan Shidam	       GitHub[https://github.com/shidamrohan] 
+                     LinkedIn[https://www.linkedin.com/in/rohan-shidam-487188399/]
+               
+Fija Shaikh    GitHub[] 
+               LinkedIn[]
 
